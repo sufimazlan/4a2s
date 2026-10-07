@@ -6,8 +6,13 @@ import type { Character } from '../scene/character';
 import { h, toast } from '../ui';
 import type { Screen } from './types';
 
-export function homeScreen(opts: { stageAvailable: boolean; character: Character | null; hasFace: boolean }): Screen {
-  const { character, hasFace } = opts;
+export function homeScreen(opts: {
+  stageAvailable: boolean;
+  character: Character | null;
+  hasFace: boolean;
+  faceSaved: boolean;
+}): Screen {
+  const { character, hasFace, faceSaved } = opts;
 
   const install = h('div', { class: 'install' });
   const renderInstall = () => {
@@ -43,7 +48,7 @@ export function homeScreen(opts: { stageAvailable: boolean; character: Character
   renderChecks();
 
   // Rescan / delete must stay reachable even if 3D isn't available to show the face.
-  const faceSection = hasFace ? yourFace(character) : newFace();
+  const faceSection = hasFace ? yourFace(character, faceSaved) : newFace();
 
   const panel = h(
     'section',
@@ -85,7 +90,7 @@ function newFace(): Node[] {
   ];
 }
 
-function yourFace(character: Character | null): (Node | null)[] {
+function yourFace(character: Character | null, saved: boolean): (Node | null)[] {
   const chip = (label: string, onClick: () => void) =>
     h('button', { class: 'chip', type: 'button', onclick: onClick }, label);
   const chips = character
@@ -101,8 +106,9 @@ function yourFace(character: Character | null): (Node | null)[] {
     h(
       'p',
       { class: 'lead' },
-      character ? 'That’s you! Tap an expression to see your character make it.' : 'Your face is saved on this device.',
+      character ? 'That’s you! Tap an expression to see your character make it.' : 'Your face is ready.',
     ),
+    saved ? null : h('p', { class: 'hint' }, 'This browser isn’t letting 4a2s save your face, so it will be gone when you close the app.'),
     chips.length ? h('div', { class: 'chips' }, ...chips) : null,
     h('a', { class: 'btn btn-secondary', href: '#/create' }, 'Rescan my face'),
     h(

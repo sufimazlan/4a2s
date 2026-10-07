@@ -8,6 +8,7 @@ import { DrawingUtils, FaceLandmarker, type FaceLandmarkerResult } from '@mediap
 import { blendshapeMap, checkNeutral, headPoseFromMatrix } from '../face/analysis';
 import { openFrontCamera, stopStream } from '../face/camera';
 import { getFaceLandmarker } from '../face/landmarker';
+import { goHome } from '../nav';
 import { h } from '../ui';
 import type { Screen } from './types';
 
@@ -40,7 +41,7 @@ export function scanScreen(): Screen {
         'aria-label': 'Back to home',
         onclick: (e: Event) => {
           e.preventDefault();
-          location.replace('#/');
+          goHome();
         },
       }, '← Back'),
       h('h2', {}, 'Face tracking test'),

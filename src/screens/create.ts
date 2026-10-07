@@ -15,6 +15,7 @@ import { alignToCanonical, headAngles, packLandmarks, toObservedPoints } from '.
 import { getFaceLandmarker } from '../face/landmarker';
 import { buildProfile, type CapturedFrame, EXPRESSIONS, type ExpressionName } from '../face/profile';
 import { saveProfile } from '../face/store';
+import { goHome } from '../nav';
 import { h, toast } from '../ui';
 import type { Screen } from './types';
 
@@ -64,7 +65,7 @@ export function createScreen(): Screen {
     h(
       'header',
       { class: 'topbar' },
-      h('a', { class: 'btn btn-ghost', href: '#/', 'aria-label': 'Back to home', onclick: goHome }, '← Back'),
+      h('a', { class: 'btn btn-ghost', href: '#/', 'aria-label': 'Back to home', onclick: onBack }, '← Back'),
       h('h2', {}, 'Create your character'),
     ),
     h('div', { class: 'scan-body' }, h('div', { class: 'cam' }, h('div', { class: 'cam-mirror' }, video), guide.svg, status), panel),
@@ -194,7 +195,7 @@ export function createScreen(): Screen {
         undefined,
         saved ? 5000 : 9000,
       );
-      if (!destroyed) location.replace('#/');
+      if (!destroyed) goHome();
     } catch (err) {
       console.error(err);
       if (destroyed) return;
@@ -413,14 +414,14 @@ export function createScreen(): Screen {
       canvas.width = f.width;
       canvas.height = f.height;
       // Copy the exact frame the landmarks came from (the live video may have moved on).
-      canvas.getContext('2d', { willReadFrequently: true })!.drawImage(snapshot, 0, 0);
+      canvas.getContext('2d', { willReadFrequently: true })!.drawImage(currentFrame, 0, 0, f.width, f.height);
       frame.image = canvas;
     }
     return frame;
   }
 
-  const snapshot = document.createElement('canvas');
-  const snapshotCtx = snapshot.getContext('2d')!;
+  /** The frame being processed right now; photos copy it so they always match their landmarks. */
+  let currentFrame: ImageBitmap | HTMLVideoElement = video;
 
   // Lighting: average brightness of the face, and left/right balance, on a tiny copy of the frame.
   const lightCanvas = document.createElement('canvas');
@@ -439,7 +440,8 @@ export function createScreen(): Screen {
     const sy = Math.max(0, minY * height);
     const sw = Math.max(1, (maxX - minX) * width);
     const sh = Math.max(1, (maxY - minY) * height);
-    lightCtx.drawImage(snapshot, sx, sy, sw, sh, 0, 0, 32, 32);
+    // Straight from the video: a frame's difference doesn't matter for average brightness.
+    lightCtx.drawImage(video, sx, sy, sw, sh, 0, 0, 32, 32);
     const d = lightCtx.getImageData(0, 0, 32, 32).data;
     let total = 0, left = 0, right = 0;
     for (let y = 4; y < 28; y++) {
@@ -493,22 +495,28 @@ export function createScreen(): Screen {
 
   function loop(): void {
     let lastVideoTime = -1;
-    const tick = () => {
+    const tick = async () => {
       if (destroyed || !stream || !landmarker) return;
       if (video.readyState >= 2 && video.currentTime !== lastVideoTime) {
         lastVideoTime = video.currentTime;
-        // Track on a still copy of the frame, so a captured photo always matches its landmarks.
-        if (snapshot.width !== video.videoWidth || snapshot.height !== video.videoHeight) {
-          snapshot.width = video.videoWidth;
-          snapshot.height = video.videoHeight;
+        // Grab the frame once (a cheap GPU-side copy) and use it for tracking and for any photo
+        // taken from it. Falls back to the live video where createImageBitmap(video) isn't supported.
+        const still = await createImageBitmap(video).catch(() => null);
+        if (destroyed || !stream || !landmarker) return still?.close();
+        currentFrame = still ?? video;
+        try {
+          onFrame(landmarker.detectForVideo(currentFrame, performance.now()));
+        } catch (err) {
+          console.error(err);
+        } finally {
+          still?.close();
+          currentFrame = video;
         }
-        snapshotCtx.drawImage(video, 0, 0);
-        onFrame(landmarker.detectForVideo(snapshot, performance.now()));
       }
-      if ('requestVideoFrameCallback' in video) video.requestVideoFrameCallback(tick);
-      else requestAnimationFrame(tick);
+      if ('requestVideoFrameCallback' in video) video.requestVideoFrameCallback(() => void tick());
+      else requestAnimationFrame(() => void tick());
     };
-    tick();
+    void tick();
   }
 
   const onVisible = () => {
@@ -531,10 +539,9 @@ export function createScreen(): Screen {
   };
 }
 
-/** Back to home without leaving this screen in history (so the phone's Back button doesn't reopen the camera). */
-function goHome(event: Event): void {
+function onBack(event: Event): void {
   event.preventDefault();
-  location.replace('#/');
+  goHome();
 }
 
 // ---------- Guide overlay (oval + Face ID–style ring) ----------

@@ -18,7 +18,7 @@ import {
   SRGBColorSpace,
   Texture,
 } from 'three';
-import { FACE_OVAL, INNER_LIPS, LEFT_EYE, RIGHT_EYE, TRIANGLES, UVS, VERTEX_COUNT } from '../face/canonicalFace';
+import { FACE_OVAL, INNER_LIPS, LEFT_EYE, POSITIONS, RIGHT_EYE, TRIANGLES, UVS, VERTEX_COUNT } from '../face/canonicalFace';
 import { EXPRESSIONS, type ExpressionName, type FaceProfile } from '../face/profile';
 
 export type MorphName = ExpressionName | 'blink';
@@ -339,18 +339,23 @@ function mouthCavity(shape: Float32Array): MouthCavity {
   let cx = 0;
   let cy = 0;
   let minZ = Infinity;
-  let left = loop[0];
-  let right = loop[0];
   for (const v of loop) {
     cx += shape[v * 3] / n;
     cy += shape[v * 3 + 1] / n;
     minZ = Math.min(minZ, shape[v * 3 + 2]);
-    if (shape[v * 3] < shape[left * 3]) left = v;
-    if (shape[v * 3] > shape[right * 3]) right = v;
+  }
+  // Upper vs lower lip comes from the canonical (open-mouthed) model: in a player's
+  // closed-mouth face the two lips are too close together to tell apart reliably.
+  const P = POSITIONS;
+  let left = loop[0];
+  let right = loop[0];
+  for (const v of loop) {
+    if (P[v * 3] < P[left * 3]) left = v;
+    if (P[v * 3] > P[right * 3]) right = v;
   }
   const lineY = (x: number) =>
-    shape[left * 3 + 1] + ((x - shape[left * 3]) / (shape[right * 3] - shape[left * 3] || 1)) * (shape[right * 3 + 1] - shape[left * 3 + 1]);
-  const upper = loop.map((v) => shape[v * 3 + 1] >= lineY(shape[v * 3]));
+    P[left * 3 + 1] + ((x - P[left * 3]) / (P[right * 3] - P[left * 3] || 1)) * (P[right * 3 + 1] - P[left * 3 + 1]);
+  const upper = loop.map((v) => P[v * 3 + 1] >= lineY(P[v * 3]));
 
   const rings: { inward: number; depth: number; follow: number }[] = [
     { inward: 0, depth: 0, follow: 1 },

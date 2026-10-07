@@ -85,6 +85,23 @@ describe('buildHeadGeometry', () => {
   });
 });
 
+describe('mouth pocket teeth', () => {
+  const teethTriangles = (s: Float32Array) => buildHeadGeometry(s, {}).geometry.groups[1].count / 3;
+
+  it('keeps the same teeth whatever the player’s closed-mouth lips look like', () => {
+    const expected = teethTriangles(shape);
+    expect(expected).toBeGreaterThan(0);
+    // Close the lips (both sides onto their midline) and nudge the corners up / down.
+    for (const nudge of [-0.1, 0, 0.1]) {
+      const closed = new Float32Array(shape);
+      const mid = (POSITIONS[13 * 3 + 1] + POSITIONS[14 * 3 + 1]) / 2;
+      for (const v of INNER_LIPS) closed[v * 3 + 1] = mid + (POSITIONS[v * 3 + 1] - mid) * 0.04;
+      for (const corner of [78, 308]) closed[corner * 3 + 1] += nudge;
+      expect(teethTriangles(closed)).toBe(expected);
+    }
+  });
+});
+
 describe('blinkOffsets', () => {
   const blink = blinkOffsets(shape);
   const y = (v: number) => POSITIONS[v * 3 + 1];

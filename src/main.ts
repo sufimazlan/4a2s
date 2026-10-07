@@ -1,6 +1,7 @@
 import './styles.css';
 import type { FaceProfile } from './face/profile';
 import { loadProfile, PROFILE_CHANGED, type ProfileChangedEvent } from './face/store';
+import { noteRoute } from './nav';
 import { initPwa } from './pwa';
 import { Character } from './scene/character';
 import { Stage } from './scene/stage';
@@ -16,10 +17,12 @@ const character = stage ? new Character(stage.pointer) : null;
 if (stage && character) stage.add(character.root, (dt, t) => character.update(dt, t));
 
 let hasFace = false;
+let faceSaved = false;
 
 /** Put a saved face (or none) on the character. */
-async function applyProfile(profile: FaceProfile | null): Promise<void> {
+async function applyProfile(profile: FaceProfile | null, saved = !!profile): Promise<void> {
   hasFace = !!profile;
+  faceSaved = saved;
   try {
     await character?.setProfile(profile);
   } catch (err) {
@@ -32,17 +35,19 @@ const onHome = () => !location.hash.replace(/^#\/?/, '');
 
 // Hash routes keep the browser / Android back button working without any server config.
 const routes: Record<string, () => Screen | Promise<Screen>> = {
-  '': () => homeScreen({ stageAvailable: !!stage, character, hasFace }),
+  '': () => homeScreen({ stageAvailable: !!stage, character, hasFace, faceSaved }),
   create: async () => (await import('./screens/create')).createScreen(),
   scan: async () => (await import('./screens/scan')).scanScreen(),
 };
 
 let current: Screen | null = null;
+let currentName: string | null = null;
 let navigation = 0;
 
 async function route(): Promise<void> {
   const id = ++navigation;
-  const make = routes[location.hash.replace(/^#\/?/, '')] ?? routes[''];
+  const name = location.hash.replace(/^#\/?/, '');
+  const make = routes[name] ?? routes[''];
   let next: Screen;
   try {
     next = await make();
@@ -55,6 +60,8 @@ async function route(): Promise<void> {
 
   current?.destroy?.();
   current = next;
+  noteRoute(currentName, name in routes ? name : '');
+  currentName = name in routes ? name : '';
   app.replaceChildren(next.el);
   if (stage) {
     stage.setPaused(next.framing === null);
@@ -65,7 +72,8 @@ async function route(): Promise<void> {
 window.addEventListener('hashchange', () => void route());
 window.addEventListener(PROFILE_CHANGED, async (event) => {
   // Use the face from the event: it may not have been storable (e.g. Safari private browsing).
-  await applyProfile((event as ProfileChangedEvent).detail.profile);
+  const { profile, saved } = (event as ProfileChangedEvent).detail;
+  await applyProfile(profile, saved);
   // Re-render the home screen so it shows the right buttons.
   if (onHome()) void route();
 });

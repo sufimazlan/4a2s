@@ -63,6 +63,12 @@ test('character creation starts the camera and guides the player', async ({ page
   await page.getByRole('link', { name: 'Back to home' }).click();
   await expect(page.getByRole('heading', { name: '4a2s' })).toBeVisible();
   expect(await track.evaluate((t: MediaStreamTrack) => t.readyState)).toBe('ended');
+
+  // Leaving went back in history rather than stacking another home entry,
+  // so the browser's Forward is the creation screen and Back leaves the app.
+  expect(page.url()).not.toContain('#/create');
+  await page.goForward();
+  await expect(page).toHaveURL(/#\/create$/);
 });
 
 test('face tracking test screen starts and stops the camera', async ({ page }) => {
