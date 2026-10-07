@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>4a2s</title>
+    <meta name="description" content="A multiplayer 3D game where your character wears your face and your expressions." />
+    <meta name="theme-color" content="#0d0f1a" />
+    <meta name="color-scheme" content="dark" />
+
+    <!-- Home-screen app on iOS / Android -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="4a2s" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+    <!-- manifest link is injected by vite-plugin-pwa at build time -->
+  </head>
+  <body>
+    <div id="stage" aria-hidden="true"></div>
+    <main id="app"></main>
+    <div id="toasts" role="status" aria-live="polite"></div>
+    <noscript>4a2s needs JavaScript to run.</noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

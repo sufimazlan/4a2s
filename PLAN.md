@@ -1,6 +1,6 @@
 # 4a2s — Game Plan
 
-> Status: planning · Last updated: 7 Oct 2026
+> Status: Phase 0 done, Phase 1 started · Last updated: 7 Oct 2026
 > A multiplayer, semi-realistic 3D web game where your character's face is built from snapshots of your real face, including your own expressions.
 
 ---
@@ -214,14 +214,14 @@ Domain prices change often. Check them at checkout.
 ## 9. Roadmap
 
 ### Phase 0 — Setup
-- [ ] Vite + TypeScript + Three.js project
+- [x] Vite + TypeScript + Three.js project
 - [ ] Deploy to Cloudflare Pages and test on iPhone Safari
-- [ ] PWA manifest, so it can be added to the home screen
+- [x] PWA manifest, so it can be added to the home screen
 
 ### Phase 1 — Neutral face scan
-- [ ] Camera + MediaPipe Face Landmarker running in the PWA
-- [ ] Draw landmarks over the video for debugging
-- [ ] Neutral-face check using blendshapes
+- [x] Camera + MediaPipe Face Landmarker running in the PWA
+- [x] Draw landmarks over the video for debugging
+- [x] Neutral-face check using blendshapes
 - [ ] Head-pose guide ring covering all angles (front, ~45° L/R, up, down, diagonals)
 - [ ] Frame quality checks (lighting, blur, centering, confidence)
 - [ ] Measure FPS and phone heat on the target iPhone

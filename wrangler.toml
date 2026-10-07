@@ -1,0 +1,4 @@
+# Cloudflare Pages project config (used by `npm run deploy` / `wrangler pages deploy`).
+name = "4a2s"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-10-01"
