@@ -67,12 +67,6 @@ export class Stage {
     this.renderer.toneMappingExposure = 1.05;
     container.append(this.renderer.domElement);
 
-    // Soft image-based lighting, generated in code so there is no HDRI file to download yet.
-    const pmrem = new PMREMGenerator(this.renderer);
-    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    this.scene.environmentIntensity = 0.55;
-    pmrem.dispose();
-
     const key = new DirectionalLight(0xfff1e0, 2.2);
     key.position.set(-1.2, 2.6, 2.2);
     const rim = new DirectionalLight(0x9fc4ff, 1.4);
@@ -110,6 +104,14 @@ export class Stage {
   }
 
   start(): void {
+    if (!this.scene.environment) {
+      // Soft image-based lighting, generated in code so there is no HDRI file to download yet.
+      // Done here rather than in the constructor: it's GPU work that would delay the first screen.
+      const pmrem = new PMREMGenerator(this.renderer);
+      this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+      this.scene.environmentIntensity = 0.55;
+      pmrem.dispose();
+    }
     this.running = true;
     this.syncLoop();
   }

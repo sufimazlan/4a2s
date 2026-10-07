@@ -1,6 +1,10 @@
 // Front camera access that behaves the same on iPhone Safari, Android Chrome and desktop webcams.
 
-export async function openFrontCamera(video: HTMLVideoElement): Promise<MediaStream> {
+/** Default 640×480 keeps live tracking fast; face capture asks for 1280×720 so the face photo is sharp. */
+export async function openFrontCamera(
+  video: HTMLVideoElement,
+  size: { width: number; height: number } = { width: 640, height: 480 },
+): Promise<MediaStream> {
   if (!window.isSecureContext) throw new CameraError('insecure');
   if (!navigator.mediaDevices?.getUserMedia) throw new CameraError('unsupported');
 
@@ -10,9 +14,8 @@ export async function openFrontCamera(video: HTMLVideoElement): Promise<MediaStr
       audio: false,
       video: {
         facingMode: 'user',
-        // Low resolution keeps face tracking fast on phones; landmarks don't need more.
-        width: { ideal: 640 },
-        height: { ideal: 480 },
+        width: { ideal: size.width },
+        height: { ideal: size.height },
         frameRate: { ideal: 30, max: 30 },
       },
     });
@@ -20,16 +23,22 @@ export async function openFrontCamera(video: HTMLVideoElement): Promise<MediaStr
     throw CameraError.from(err);
   }
 
-  // iOS needs all three of these or the video stays black / goes fullscreen.
-  video.playsInline = true;
-  video.muted = true;
-  video.autoplay = true;
-  video.srcObject = stream;
-  await video.play();
-  if (!video.videoWidth) {
-    await new Promise<void>((resolve) => video.addEventListener('loadedmetadata', () => resolve(), { once: true }));
+  try {
+    // iOS needs all three of these or the video stays black / goes fullscreen.
+    video.playsInline = true;
+    video.muted = true;
+    video.autoplay = true;
+    video.srcObject = stream;
+    await video.play();
+    if (!video.videoWidth) {
+      await new Promise<void>((resolve) => video.addEventListener('loadedmetadata', () => resolve(), { once: true }));
+    }
+    return stream;
+  } catch (err) {
+    // e.g. the player left the screen while the camera was warming up: don't leave it running.
+    stopStream(stream);
+    throw err;
   }
-  return stream;
 }
 
 export function stopStream(stream: MediaStream | null): void {

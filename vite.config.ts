@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { createReadStream, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
@@ -75,9 +76,10 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
         globIgnores: ['mediapipe/**'],
         navigateFallback: '/index.html',
+        // These callbacks are copied into sw.js as source code: use literals, not variables from this file.
         runtimeCaching: [
           {
-            urlPattern: ({ url }) => url.pathname.startsWith(MEDIAPIPE_URL_PREFIX),
+            urlPattern: ({ url }) => url.pathname.startsWith('/mediapipe/wasm/'),
             handler: 'CacheFirst',
             options: { cacheName: 'mediapipe-wasm', expiration: { maxEntries: 8 } },
           },
@@ -98,5 +100,8 @@ export default defineConfig(({ mode }) => ({
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 1000,
+  },
+  test: {
+    include: ['src/**/*.test.ts'],
   },
 }));

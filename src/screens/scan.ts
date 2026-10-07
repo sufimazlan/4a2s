@@ -34,7 +34,15 @@ export function scanScreen(): Screen {
     h(
       'header',
       { class: 'topbar' },
-      h('a', { class: 'btn btn-ghost', href: '#/', 'aria-label': 'Back to home' }, '← Back'),
+      h('a', {
+        class: 'btn btn-ghost',
+        href: '#/',
+        'aria-label': 'Back to home',
+        onclick: (e: Event) => {
+          e.preventDefault();
+          location.replace('#/');
+        },
+      }, '← Back'),
       h('h2', {}, 'Face tracking test'),
     ),
     h(

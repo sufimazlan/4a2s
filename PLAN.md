@@ -1,6 +1,6 @@
 # 4a2s — Game Plan
 
-> Status: Phase 0 done, Phase 1 started · Last updated: 7 Oct 2026
+> Status: Phase 0 done · face scan → character working (first pass of Phases 1–3) · Last updated: 7 Oct 2026
 > A multiplayer, semi-realistic 3D web game where your character's face is built from snapshots of your real face, including your own expressions.
 
 ---
@@ -30,7 +30,7 @@ The character is **semi-realistic** and comes alive through animation: a **giggl
 | Face tracking | **MediaPipe Face Landmarker** (in browser) | 478 landmarks + 52 expression blendshapes + head pose, all from the normal camera |
 | Character creation flow | **Two steps of snapshots:** neutral multi-angle scan, then expression snaps | Neutral gives the face shape; expressions give the player's personal emotions |
 | Art style | **Semi-realistic** | Realistic proportions and skin shading, but not photoreal. Avoids the uncanny valley and stays light enough for iPhone browsers |
-| Likeness target | **Semi-realistic character that resembles the player** | Face shape + skin tone + personal expressions from the scan, applied to a semi-real base head |
+| Likeness target | **The character wears the player's own face** | Changed 7 Oct 2026 at the player's request: the head is built from the player's scanned face shape and wears their face photo as its texture (see 4.3). Body, hair and clothes stay game assets |
 | Animation | **Giggle animation + interaction animations** | Makes characters feel alive and gives players ways to play together |
 | Accuracy strategy | **Capture as many angles as possible** | Profile views reveal nose and jaw depth that a single front photo can't |
 | Body and style | **Customized in game**, not scanned | Hair, neck, body and clothes are game assets the player picks |
@@ -86,23 +86,21 @@ Angry and sad are harder to fake on demand, so their thresholds should be lenien
 **Giggle clip:** after the laugh snap, the player records a **2–3 second giggle**. The game stores only the 52 blendshape values for each frame, not the video. This becomes the player's personal giggle animation (see 5.2).
 
 ### 4.3 Applying the face data to the character
-**Face shape (from the neutral scan):**
-1. Normalize each angle's landmarks by its head pose so all views share one coordinate space.
-2. Fit one face shape to **all angles together**:
-   - The front view gives widths, spacing and proportions.
-   - The side views give nose projection and jaw/chin depth.
-   - The up/down views give brow and chin shape.
-3. Convert the fitted shape into **avatar parameters**: face width/length, jaw, chin, cheekbones, eye size/spacing/tilt, nose width/length/projection, mouth width, lip thickness, brow position.
-4. Sample **skin tone** from cheek and forehead regions, correcting for lighting.
-5. Apply the parameters as morph-target weights on the base head mesh.
+**Built (first pass)** — the character's head is rebuilt from the scan instead of morphing a Blender base head:
 
-**Personal expressions (from the expression snaps):** for each expression, store:
-- the **52 blendshape weights** at the peak of the expression. These drive the character's matching shape keys, so the character makes the same mix of movements the player made.
-- the **landmark offsets from the neutral face**. These are applied as small corrections on top, so the character keeps the player's personal details (a lopsided smile, how wide the mouth opens, how far the brows drop).
+**Face shape:** every neutral frame (straight-on + each ring direction) is aligned to MediaPipe's canonical face (similarity fit), then averaged. Each vertex is weighted by how squarely it faced the camera in that frame, so side views refine the nose and jaw without blurring what they saw edge-on. The result is the player's own 468-point face mesh.
 
-Then show a **preview** where the player can see their character cycle through all expressions, and adjust face sliders manually if needed.
+**Rest of the head:** grown backwards from the face outline to the back of the skull ("loft"), sharing the outline vertices so there's no seam. Hair is a shell over the same surface with a natural hairline; ears, mouth interior and upper teeth are added around it.
 
-All of this face data is small, a few KB per player.
+**Face texture:** each captured photo is unwrapped into the canonical UV layout and blended. The straight-on photo owns everything it sees squarely (eyes, nose, mouth); side views only fill in the cheeks and jaw. Broad lighting gradients are evened out so the 3D lights don't double up on shading baked into the photo. The photo fades into plain skin tone at the edge of the face.
+
+**Skin & hair colour:** skin tone from the cheeks; hair colour from the darker-than-skin pixels just above the forehead.
+
+**Personal expressions:** each expression snap is lined up with the neutral face on landmarks that don't move with expressions, and stored as per-vertex offsets. They become the head's morph targets, so the character makes *the player's* smile, laugh, surprise, anger and sadness. A blink is synthesised from the eyelid contours.
+
+**Preview:** the home screen shows the character with buttons for each captured expression plus a giggle.
+
+Still to do: manual face sliders, giggle clip recording, a Blender-quality base body.
 
 ### 4.4 In-game customization (later)
 Not part of the scan. Picked by the player inside the game:
@@ -113,7 +111,7 @@ Not part of the scan. Picked by the player inside the game:
 
 ### 4.5 Out of scope for v1
 - Scanning hair, ears or the back of the head
-- Photorealistic face textures (uncanny valley, lighting seams). The look stays semi-real.
+- ~~Photorealistic face textures~~ — now in scope: the player asked for the character to wear their real face (7 Oct 2026).
 
 ## 5. Art style and animation
 
@@ -156,9 +154,9 @@ Network cost is a couple of short messages per interaction.
 ## 6. Privacy
 
 - **The snapped photos never leave the phone.** All processing happens on the device.
-- After processing, the game keeps only the **derived face data** (avatar parameters + expression data). The photos can be deleted, or kept locally if the player wants to re-process later.
+- After processing, the game keeps only the **derived face data**: face shape, expression offsets, colours and the baked face texture (one ~50–100 KB JPEG in the face layout). The raw camera frames are thrown away. The player can delete it all from the home screen.
 - The giggle clip is stored as numbers only (blendshape values per frame). **No video is kept.**
-- Only the derived face data (a few KB) goes to the server, so other players in the room can see the character.
+- Only the derived face data (~100 KB including the face texture) will go to the server in multiplayer, so other players in the room can see the character. The texture is a recognisable face, so treat it as personal data.
 - This keeps biometric photos off the server (good for PDPA) and keeps bandwidth tiny.
 
 ## 7. Multiplayer architecture
@@ -215,38 +213,38 @@ Domain prices change often. Check them at checkout.
 
 ### Phase 0 — Setup
 - [x] Vite + TypeScript + Three.js project
-- [ ] Deploy to Cloudflare Pages and test on iPhone Safari
+- [x] Deploy to Cloudflare Pages (4a2s.pages.dev) · [ ] test on iPhone Safari
 - [x] PWA manifest, so it can be added to the home screen
 
 ### Phase 1 — Neutral face scan
 - [x] Camera + MediaPipe Face Landmarker running in the PWA
 - [x] Draw landmarks over the video for debugging
 - [x] Neutral-face check using blendshapes
-- [ ] Head-pose guide ring covering all angles (front, ~45° L/R, up, down, diagonals)
-- [ ] Frame quality checks (lighting, blur, centering, confidence)
+- [x] Head-pose guide ring covering all angles (front, ~45° L/R, up, down, diagonals)
+- [x] Frame quality checks (lighting, distance, centering, stillness)
 - [ ] Measure FPS and phone heat on the target iPhone
 
 ### Phase 2 — Expression snaps
-- [ ] Expression detection + live strength meter
-- [ ] Auto-snap when held steady
-- [ ] Smile, laugh, angry, sad (+ optional surprised)
-- [ ] Retake / skip with default fallback
+- [x] Expression detection + live strength meter
+- [x] Auto-snap when held steady
+- [x] Smile, laugh, angry, sad (+ optional surprised)
+- [x] Retake / skip with default fallback
 - [ ] Giggle clip recording (2–3 s of blendshape values)
 
 ### Phase 3 — Apply face data to character
-- [ ] Base head mesh in Blender with likeness morph targets
-- [ ] 52 expression shape keys (ARKit names)
-- [ ] Multi-angle fitting → avatar parameters
-- [ ] Skin tone sampling
-- [ ] Personal expressions (blendshape weights + landmark corrections)
-- [ ] Preview screen cycling through expressions + manual sliders
-- [ ] Save face data to IndexedDB
+- [x] ~~Base head mesh in Blender~~ → head built from the player's own face mesh
+- [x] ~~52 ARKit shape keys~~ → personal expression morph targets from the snaps
+- [x] Multi-angle fitting → face shape
+- [x] Skin tone sampling
+- [x] Personal expressions (landmark offsets as morph targets) + synthesised blink
+- [x] Preview with expression buttons · [ ] manual sliders
+- [x] Save face data to IndexedDB
 
 ### Phase 3b — Semi-real look + animation
 - [ ] Semi-real skin, eyes and lighting; test performance on iPhone
 - [ ] Humanoid rig + Mixamo base clips (idle, walk, wave, clap)
 - [ ] Layered face + body animation in `AnimationMixer`
-- [ ] Giggle animation: personal clip playback + procedural fallback + body bounce
+- [ ] Giggle animation: personal clip playback · [x] procedural giggle + head/body bounce
 - [ ] Solo emotes
 
 ### Phase 4 — Multiplayer

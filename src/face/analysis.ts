@@ -57,6 +57,9 @@ const NEUTRAL_LIMITS: Record<string, number> = {
   cheekPuff: 0.4,
   noseSneerLeft: 0.4,
   noseSneerRight: 0.4,
+  // A blink would bake closed eyes into the face photo.
+  eyeBlinkLeft: 0.45,
+  eyeBlinkRight: 0.45,
 };
 
 export interface NeutralCheck {

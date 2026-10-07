@@ -1,6 +1,8 @@
 import './styles.css';
+import type { FaceProfile } from './face/profile';
+import { loadProfile, PROFILE_CHANGED, type ProfileChangedEvent } from './face/store';
 import { initPwa } from './pwa';
-import { createPlaceholderCharacter } from './scene/placeholderCharacter';
+import { Character } from './scene/character';
 import { Stage } from './scene/stage';
 import { homeScreen } from './screens/home';
 import type { Screen } from './screens/types';
@@ -10,15 +12,28 @@ initPwa();
 
 const app = document.getElementById('app')!;
 const stage = Stage.create(document.getElementById('stage')!);
-if (stage) {
-  const character = createPlaceholderCharacter(stage.pointer);
-  stage.add(character.root, character.update);
-  stage.start();
+const character = stage ? new Character(stage.pointer) : null;
+if (stage && character) stage.add(character.root, (dt, t) => character.update(dt, t));
+
+let hasFace = false;
+
+/** Put a saved face (or none) on the character. */
+async function applyProfile(profile: FaceProfile | null): Promise<void> {
+  hasFace = !!profile;
+  try {
+    await character?.setProfile(profile);
+  } catch (err) {
+    console.error('Could not build the character from the saved face', err);
+    toast('Your saved face could not be loaded. Try scanning again.');
+  }
 }
+
+const onHome = () => !location.hash.replace(/^#\/?/, '');
 
 // Hash routes keep the browser / Android back button working without any server config.
 const routes: Record<string, () => Screen | Promise<Screen>> = {
-  '': () => homeScreen({ stageAvailable: !!stage }),
+  '': () => homeScreen({ stageAvailable: !!stage, character, hasFace }),
+  create: async () => (await import('./screens/create')).createScreen(),
   scan: async () => (await import('./screens/scan')).scanScreen(),
 };
 
@@ -48,4 +63,26 @@ async function route(): Promise<void> {
 }
 
 window.addEventListener('hashchange', () => void route());
-void route();
+window.addEventListener(PROFILE_CHANGED, async (event) => {
+  // Use the face from the event: it may not have been storable (e.g. Safari private browsing).
+  await applyProfile((event as ProfileChangedEvent).detail.profile);
+  // Re-render the home screen so it shows the right buttons.
+  if (onHome()) void route();
+});
+
+async function boot(): Promise<void> {
+  // Load the saved face before the first screen so a returning player sees their own
+  // character straight away — but never wait long: Safari's IndexedDB can stall.
+  const saved = loadProfile();
+  const early = await Promise.race([saved, new Promise<'late'>((r) => setTimeout(() => r('late'), 2000))]);
+  if (early !== 'late') await applyProfile(early);
+  await route();
+  // Start rendering after the first screen is up: compiling shaders blocks the page briefly.
+  stage?.start();
+  if (early === 'late') {
+    await applyProfile(await saved);
+    if (onHome()) void route();
+  }
+}
+
+void boot();

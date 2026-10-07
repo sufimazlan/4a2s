@@ -14,7 +14,7 @@ test('home screen shows the UI and the 3D character', async ({ page }) => {
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: '4a2s' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Try face tracking' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Create my character' })).toBeVisible();
 
   const canvas = page.locator('#stage canvas');
   await expect(canvas).toBeVisible();
@@ -48,10 +48,25 @@ test('is installable: manifest, icons and service worker', async ({ page, reques
   expect(swActive).toBe(true);
 });
 
-test('face tracking screen starts and stops the camera', async ({ page }) => {
+test('character creation starts the camera and guides the player', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('link', { name: 'Try face tracking' }).click();
-  await expect(page).toHaveURL(/#\/scan$/);
+  await page.getByRole('link', { name: 'Create my character' }).click();
+  await expect(page).toHaveURL(/#\/create$/);
+  await expect(page.getByRole('heading', { name: 'Create your character' })).toBeVisible();
+  await expect(page.getByText('Step 1 of 3')).toBeVisible();
+  await expect(page.locator('#stage')).toBeHidden();
+
+  const video = page.locator('video.cam-feed');
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState >= 2 && !v.paused)).toBe(true);
+  const track = await video.evaluateHandle((v: HTMLVideoElement) => (v.srcObject as MediaStream).getVideoTracks()[0]);
+
+  await page.getByRole('link', { name: 'Back to home' }).click();
+  await expect(page.getByRole('heading', { name: '4a2s' })).toBeVisible();
+  expect(await track.evaluate((t: MediaStreamTrack) => t.readyState)).toBe('ended');
+});
+
+test('face tracking test screen starts and stops the camera', async ({ page }) => {
+  await page.goto('/#/scan');
   await expect(page.getByRole('heading', { name: 'Face tracking test' })).toBeVisible();
 
   // The 3D stage is paused while the camera is in use.
